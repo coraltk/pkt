@@ -55,7 +55,14 @@ class Decoder:
             return data.decode('utf-8'), True
         except:
             # TODO: otherwise, we do more parsing
-            return data, False
+            try:
+                if data[:1] == b'\x17':
+                    tls = self.tls(data)
+                    return f"TLS: content_type {tls[0]}\tversion {tls[1]}\tlength {tls[2]}", True
+                else:
+                    raise Exception
+            except:
+                return data, False
 
     def print_data(self, data, indent=2):
         print("\n"+"\t"*indent, end="")
@@ -133,6 +140,11 @@ class Decoder:
         data_out = data[4:]
 
         return self.icmp_codes[typ], code, chksum, data_out
+
+    def tls(self, data):
+        content_type, version, length = struct.unpack("!B2sh", data[:5])
+
+        return content_type, version, length
 
 if __name__ == "__main__":
     sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
