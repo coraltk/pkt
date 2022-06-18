@@ -3,13 +3,20 @@
 import socket, struct, os
 
 colors = {
-    "red"   : "\x1b[1;31m",
-    "green" : "\x1b[1;32m",
-    "blue"  : "\x1b[1;34m",
-    "yellow": "\x1b[1;33m",
-    "black" : "\x1b[1;30m",
-    "reset" : "\x1b[0m"
+    "red"         : "\x1b[0;31m",
+    "green"       : "\x1b[0;32m",
+    "blue"        : "\x1b[0;34m",
+    "yellow"      : "\x1b[0;33m",
+    "light_red"   : "\x1b[1;31m",
+    "light_green" : "\x1b[1;32m",
+    "light_blue"  : "\x1b[1;34m",
+    "light_yellow": "\x1b[1;33m",
+    "reset"       : "\x1b[0m"
 }
+
+def chunks(lst, n):
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
 
 class Decoder:
     def __init__(self):
@@ -70,14 +77,23 @@ class Decoder:
 
         data, plaintext = self.format_data(data)
         
+        if not plaintext:
+            data_pt = "".join([chr(char) if chr(char).isprintable() else "." for char in data])
+            data_pt = list(chunks(data_pt, 20))
+        
         data = [r'\x{:02x}'.format(byte) for byte in data] if not plaintext else data
 
         if plaintext:
             data = data.replace("\n", "\n"+"\t"*indent)
 
+        i = 0
         for idx, char in enumerate(data):
             print(char, end="")
             if (idx+1) % 20 == 0 and not plaintext:
+                try:
+                    print(f"\t{colors['light_red']}"+data_pt[i], end=colors['red'])
+                    i+=1
+                except:pass
                 print("\n"+"\t"*indent, end="")
         
         print()
