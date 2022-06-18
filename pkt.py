@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 
-import socket, struct, os
+import socket, struct, os, sys
 
 colors = {
     "red"         : "\x1b[0;31m",
@@ -45,6 +45,16 @@ class Decoder:
             18: "address mask reply",
             30: "traceroute"
         }
+
+        self.tls_content = {
+            20: "change_cipher_spec",
+            21: "alert",
+            22: "handshake",
+            23: "application_data",
+            24: "heartbeat",
+            25: "tls12_cid",
+            26: "ack"
+        }
     
     # format it so it's human readable
     def format_mac(self, mac):
@@ -63,9 +73,14 @@ class Decoder:
         except:
             # TODO: otherwise, we do more parsing
             try:
-                if data[:1] == b'\x17':
+                tls_ver = data[1:2]
+                if tls_ver == b'\x03': # check if it is tls
                     tls = self.tls(data)
-                    return f"TLS: content_type {tls[0]}\tversion {tls[1]}\tlength {tls[2]}", True
+                    
+                    if tls[0] == 'client_hello':
+                        return f"TLS: content_type {tls[0]}\tversion {tls[1]}\tlength {tls[2]}\ncipher suites length {tls[3]}\ncipher suites {tls[4]}", True
+                    else:
+                        return f"TLS: content_type {tls[0]}\tversion {tls[1]}\tlength {tls[2]}", True
                 else:
                     raise Exception
             except:
@@ -159,8 +174,60 @@ class Decoder:
 
     def tls(self, data):
         content_type, version, length = struct.unpack("!B2sh", data[:5])
+        
+        tls_handshakes = {
+            1: "client_hello",
+            2: "server_hello"
+        }
 
-        return content_type, version, length
+        tls_versions = {
+            b"\x03\x03": "tls1.2,tls1.3",
+            b"\x03\x01": "tls1.1"
+        }
+
+        version = tls_versions[version]
+        content_type = self.tls_content[content_type]
+
+        if content_type != "handshake":
+            return content_type, version, length
+
+        # parse handshake
+        data = data[5:]
+
+        handshake, length = struct.unpack("!b2xB", data[:4])
+        
+        handshake = tls_handshakes[handshake]
+
+       
+
+        # we already know the tls version + we dont care about the random value
+        data = data[6+32:]
+
+        if handshake == "client_hello":
+            session_id_len, cipher_suites_len = struct.unpack("!b32xh", data[:35])
+            data = data[35:]
+            
+            suites = []
+            for i in range(0, cipher_suites_len, 2):
+                suites.append(struct.unpack("!H", data[i:i+2]))
+        
+            data = data[cipher_suites_len:]
+            compression_length = struct.unpack("!b", data[:1])
+            data = data[1+compression_length:]
+        
+            extensions_length = struct.unpack("!h", data[:2])
+            data = data[2:]
+            i = 0
+            while True:
+                # get the extension type
+                extension_type, extension_length = struct.unpack("!H", data[:2])
+
+
+            return handshake, version, length, int(cipher_suites_len/2), suites
+        else:
+            pass
+
+        return handshake, version, length
 
 if __name__ == "__main__":
     sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
