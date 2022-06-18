@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 
-import socket, struct, os, sys
+import socket, struct, os
 
 colors = {
     "red"         : "\x1b[0;31m",
@@ -83,7 +83,9 @@ class Decoder:
                         return f"TLS: content_type {tls[0]}\tversion {tls[1]}\tlength {tls[2]}", True
                 else:
                     raise Exception
-            except:
+            except Exception as e:
+                print(e)
+                input()
                 return data, False
 
     def print_data(self, data, indent=2):
@@ -213,15 +215,27 @@ class Decoder:
         
             data = data[cipher_suites_len:]
             compression_length = struct.unpack("!b", data[:1])
-            data = data[1+compression_length:]
+            data = data[1+compression_length[0]:]
         
             extensions_length = struct.unpack("!h", data[:2])
             data = data[2:]
+            
             i = 0
-            while True:
+            while i > extensions_length[0]:
                 # get the extension type
-                extension_type, extension_length = struct.unpack("!H", data[:2])
+                extension_type, extension_length = struct.unpack("!HH", data[i:i+4])
+                if extension_type == 0: # sni
+                    server_name_length = struct.unpack("!H", data[i+7:i+9])
+                    server_name = data[i+9:i+9+server_name_length[0]]
+                    
+                    print(server_name.decode('utf-8'))
+                    input()
+                    
+                    i+=9+server_name_length[0]
 
+                    continue
+                else:
+                    i+=extension_length
 
             return handshake, version, length, int(cipher_suites_len/2), suites
         else:
