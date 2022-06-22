@@ -20,3 +20,7 @@ class IP:
 
     def format_ipv4(self, ip):
         return '.'.join(map(str, ip))
+
+class TCP:
+    def __init__(self):
+        pass

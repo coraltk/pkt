@@ -8,3 +8,4 @@ class Colours:
         self.light_green  = "\x1b[1;32m"
         self.light_blue   = "\x1b[1;34m"
         self.light_yellow = "\x1b[1;33m"
+        self.reset        = "\x1b[0m"

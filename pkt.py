@@ -1,8 +1,10 @@
 #! /usr/bin/env python3
 
 from netfilterqueue import NetfilterQueue
-from src.terminal   import *
-from src.packet     import *
+import argparse
+
+from src.terminal import *
+from src.packet import *
 
 class Pkt:
     def __init__(self):
@@ -26,21 +28,30 @@ class Pkt:
             self.nfq.unbind()
 
     def pkt(self, packet):
+        pinfo = {
+            "l3_ipv4_src": "",
+            "l3_ipv4_dst": "",
+            "l3_ipv4_proto": "",
+            "l3_ipv4_ttl": ""#,
+            #"l4_tcp"
+        }
+
         ipdata = IP(packet.get_payload())
 
         self.log.info(f"Got packet from {ipdata.src}")
 
-        if ipdata.src == 'really.cool.ip.address':
-            packet.drop()
-            return
+
 
         packet.accept()
 
 if __name__ == "__main__":
     log = Log()
-
     log.succ("pkt v1.0.0")
 
-    _pkt = Pkt()
+    parser = argparse.ArgumentParser(description='A stateless firewall with yara like rules in python.', allow_abbrev=True)
+    parser.add_argument('--verbose', '-v', action='count', default=0, help='Increases verbosity')
+    parser.add_argument('--rules', '-r', help='The directory in which the rules are stored', type=str, default='rules/')
+    arguments = parser.parse_args()
 
+    _pkt = Pkt()
     _pkt.run()

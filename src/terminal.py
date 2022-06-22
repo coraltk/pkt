@@ -5,10 +5,10 @@ class Log:
         self.c = Colours()
 
     def warn(self, s):
-        print(f"{self.c.red}[!] {s}")
+        print(f"{self.c.red}[!] {s}{self.c.reset}")
     
     def info(self, s):
-        print(f"{self.c.blue}[~] {s}")
+        print(f"{self.c.blue}[~] {s}{self.c.reset}")
     
     def succ(self, s):
-        print(f"{self.c.green}[*] {s}")
+        print(f"{self.c.green}[*] {s}{self.c.reset}")
