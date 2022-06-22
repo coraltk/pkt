@@ -22,5 +22,16 @@ class IP:
         return '.'.join(map(str, ip))
 
 class TCP:
-    def __init__(self):
-        pass
+    def __init__(self, data):
+        self.src_port, self.dst_port, self.seq, self.ack, self.res = struct.unpack('!HHLLH', data[:14])
+        off      = (self.res >> 12) * 4
+        urg      = (self.res & 32) >> 5
+        ack      = (self.res & 16) >> 4
+        psh      = (self.res & 8) >> 3
+        rst      = (self.res & 4) >> 2
+        syn      = (self.res & 2) >> 1
+        fin      = (self.res & 32)
+        self.data = data[off:]
+    
+        self.flags = {"urg": urg, "ack": ack, "psh": psh, "rst": rst, "syn": syn, "fin": fin}
+

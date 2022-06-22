@@ -10,7 +10,7 @@ In these docs when I'm referring to the OSI model and the various layers that th
 
 This only works on **linux**. This is only designed for **linux**. There will most likely be **no support** for **operating systems other than linux**.
 
-## $ Help!
+## $ Docs
 
 ### > Making rules
 
@@ -25,3 +25,21 @@ There are two rules you need to create per .yar file. The first one should be ca
     - Should be a properly formatted yara rule
     - Matched against **raw** packet data (raw bytes starting at the network layer)
     - **NOTE** you can have `_RAW` multiple times in this second rule, as the parser seeks backwards through the rule name
+
+### > How to run?
+
+You need:
+- linux
+- iptables
+- less
+- build-essential python-dev libnetfilter-queue-dev on debian, find out what these packages are for your distribution
+- python >= **3.10**
+    - Why? I use match case
+- root/sudo permissions
+
+Run:
+```bash
+less run_pkt.sh
+echo -e \\nONLY PRESS ENTER\\nif you have:\\n\\n1. read through the script carefully\\n2. trust everything that it does\\notherwise, press Ctrl+C
+read && ./run_pkt.sh
+```
