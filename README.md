@@ -2,6 +2,12 @@
 
 stateless firewall with yara like rules in python
 
+## $ Important stuff
+
+In these docs when I'm referring to the OSI model and the various layers that the protocols are in, use this image to see what I mean:
+
+[![The OSI model](https://user-images.githubusercontent.com/42625905/174976902-70505511-47d0-46c1-8867-da26de884e42.png)](https://infosys.beckhoff.com/content/1033/tf6310_tc3_tcpip/84246923.html)
+
 ## $ Help!
 
 ### > Making rules
