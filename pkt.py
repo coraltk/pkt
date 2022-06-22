@@ -85,7 +85,6 @@ class Decoder:
                     raise Exception
             except Exception as e:
                 print(e)
-                input()
                 return data, False
 
     def print_data(self, data, indent=2):
