@@ -178,7 +178,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='A stateless firewall with yara like rules in python.', allow_abbrev=True)
     parser.add_argument('--verbose', '-v', action='count', default=0, help='Increases verbosity')
     parser.add_argument('--rules', '-r', help='The directory in which the rules are stored', type=str, default='rules/')
-    parser.add_argument('--out', '-o', help='The directory in which the packet output is stored', type=str, default='')
+    parser.add_argument('--out', '-o', help='The directory in which the packet output is stored', type=str, default='packets/')
     args = parser.parse_args()
 
     _pkt = Pkt(args.verbose, args.rules, args.out)
