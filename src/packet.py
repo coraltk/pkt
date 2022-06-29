@@ -35,3 +35,98 @@ class TCP:
     
         self.flags = {"urg": urg, "ack": ack, "psh": psh, "rst": rst, "syn": syn, "fin": fin}
 
+class UDP:
+    def __init__(self, data):
+        self.src_port, self.dst_port, self.size = struct.unpack('!HH2xH', data[:8])
+        self.data = data[8:]
+
+class DNS:
+    def __init__(self, data):
+        opcodes = {
+            0: "query",
+            1: "iquery OBSOLETE",
+            2: "status",
+            3: "unassigned opcode",
+            4: "notify",
+            5: "update",
+            6: "dns stateful operations"
+        }
+
+        header = struct.unpack("!6H", data[:12])
+        self.txid = header[0]
+        flags = header[1]
+        self.nqueries = header[2]
+        self.nanswers = header[3]
+        self.nauthority = header[4]
+        self.nadditional = header[5]
+
+        self.is_query = flags & 0x8000
+        self.opcode = opcodes[flags & 0x7800 >> 11]
+        self.trunced = flags & 0x0200 != 0
+        
+        payload = data[12:]
+
+        if self.is_query:
+            queries = []
+            for i in range(self.nqueries):
+                j = payload.index(0) + 1 + 4
+                queries.append(payload[:j])
+                payload = payload[j:]
+
+            self.queries = [self.get_domain(query) for query in queries]
+        else:
+            self.authoritative = (flags & 1024) >> 10
+            self.recursion_desired = (flags & 256) >> 8
+            self.recursion_available = (flags & 128) >> 7
+            self.z = (flags & 64) >> 6
+            self.authenticated = (flags & 32) >> 5
+            self.non_authenticated_data = (flags & 16) >> 4
+            self.reply_code = (flags & 8) >> 3
+            
+            queries = []
+            for i in range(self.nqueries):
+                j = payload.index(0) + 1 + 4
+                queries.append(payload[:j])
+                payload = payload[j:]
+
+            self.queries = [self.get_domain(query) for query in queries]
+
+    def get_domain(self, query):
+        # extract domain from a query
+        domain = []
+        while True:
+            l = query[0]
+            query = query[1:]
+            if l == 0:
+                break
+            domain.append(query[:l])
+            query = query[l:]
+        domain = [x.decode("ascii") for x in domain]
+        domain = ".".join(domain)
+        return domain
+
+class Protocols:
+    def __init__(self, parsed_packet, packet_proto):
+        lookup = {}
+
+        with open("lib/protos.txt", "r") as f:
+            fc = f.readlines()[:-2]
+            for i in fc:
+                i = i.rstrip()
+                parsed = i.split("  ")
+                protocol = parsed[0]
+                port = parsed[1]
+                what = " ".join(parsed[2:])
+                lookup[f"{protocol}_{port}"] = what
+        
+        try:
+            src_proto = lookup[f"{packet_proto}_{parsed_packet.src_port}"]
+        except Exception as e:
+            src_proto = "unknown"
+        
+        try:
+            dst_proto = lookup[f"{packet_proto}_{parsed_packet.dst_port}"]
+        except Exception as e:
+            dst_proto = "unknown"
+
+        self.protos = f"{src_proto} OR {dst_proto}"

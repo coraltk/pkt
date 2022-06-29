@@ -1,0 +1,185 @@
+#! /usr/bin/env python3
+
+from netfilterqueue import NetfilterQueue
+import argparse, shutil, os, yara, sys, yaml
+
+from src.terminal import *
+from src.packet import *
+
+class Pkt:
+    def __init__(self, verbose, rules_path, out):
+        try:
+            self.log = log
+        except NameError:
+            # if in module, we do not care
+            self.log = lambda _: None
+
+        try:
+            self.rules = yara.compile(f'{rules_path}default.yar')
+        except Exception as e:
+            self.log.warn(f"Failed to open default yara file! {e}")
+            sys.exit(1)
+
+        self.out = out
+
+        self.counter = 0
+        self.verbose = verbose
+
+        self.nfq = NetfilterQueue()
+
+    def run(self):
+        try:
+            shutil.rmtree(self.out)
+        except OSError:
+            log.warn(f"Failed to remove {self.out} directory")
+        os.mkdir(self.out)
+
+        self.log.succ("Starting")
+
+        self.nfq.bind(1, self.pkt)
+
+        try:
+            self.nfq.run()
+        except KeyboardInterrupt:
+            log.warn("Bye!")
+            self.nfq.unbind()
+
+    def pkt(self, packet):
+        self.counter += 1
+
+        pinfo = {
+            "a1_port_trojan"              : "", # trojan port?
+            "a1_port_trojan_exp_proto" : "", # expected protocol
+            "a1_port_trojan_act_l4_proto" : "", # actual layer 4 protocol
+            "a1_port_trojan_act_l7_proto" : "", # actual protocol observed
+
+            "l3_ipv4_src"              : "", # source ipv4 address
+            "l3_ipv4_dst"              : "", # destination ipv4 address
+            "l3_ipv4_proto"            : "", # layer 4 protocol
+            "l3_ipv4_ttl"              : "", # ipv4 time to live
+
+            "l4_tcp_port_src"          : "", # tcp source port
+            "l4_tcp_port_dst"          : "", # tcp destination port
+            "l4_tcp_seq"               : "", # tcp sequence number
+            "l4_tcp_ack"               : "", # tcp acknowledgement number
+            "l4_tcp_res"               : "", # 
+            "l4_tcp_flags_urg"         : "", # URG flag?
+            "l4_tcp_flags_ack"         : "", # ACK flag?
+            "l4_tcp_flags_psh"         : "", # PSH flag?
+            "l4_tcp_flags_rst"         : "", # RST flag?
+            "l4_tcp_flags_syn"         : "", # SYN flag?
+            "l4_tcp_flags_fin"         : "", # FIN flag?
+
+            "l4_udp_port_src"          : "", # udp source port
+            "l4_udp_port_dst"          : "", # udp destination port
+            "l4_udp_size"              : "", # udp payload size
+        
+            "l7_dns_is_query"          : "", # dns query or answer?
+            "l7_dns_txid"              : "", # dns transaction id
+            "l7_dns_n_queries"         : "", # number of dns queries
+            "l7_dns_n_answers"         : "", # number of dns answers
+            "l7_dns_n_authority"       : "", # 
+            "l7_dns_n_additional"      : "", # number of additional dns queries/answers
+
+        }
+
+        ip = IP(packet.get_payload())
+        pinfo["l3_ipv4_src"]   = ip.src
+        pinfo["l3_ipv4_dst"]   = ip.dst
+        pinfo["l3_ipv4_proto"] = ip.proto
+        pinfo["l3_ipv4_ttl"]   = ip.ttl
+        
+        if self.verbose > 0:
+            self.log.info(f"{ip.src} -> {ip.dst} {self.counter}")
+
+        match ip.proto:
+            case "TCP":
+                tcp = TCP(ip.data)
+
+                pinfo["l4_tcp_port_src"]  = tcp.src_port
+                pinfo["l4_tcp_port_dst"]  = tcp.dst_port
+                pinfo["l4_tcp_seq"]       = tcp.seq
+                pinfo["l4_tcp_ack"]       = tcp.ack
+                pinfo["l4_tcp_res"]       = tcp.res
+
+                pinfo["l4_tcp_flags_urg"] = tcp.flags["urg"]
+                pinfo["l4_tcp_flags_ack"] = tcp.flags["ack"]
+                pinfo["l4_tcp_flags_psh"] = tcp.flags["psh"]
+                pinfo["l4_tcp_flags_rst"] = tcp.flags["rst"]
+                pinfo["l4_tcp_flags_syn"] = tcp.flags["syn"]
+                pinfo["l4_tcp_flags_fin"] = tcp.flags["fin"]
+
+                if self.verbose > 1:
+                    self.log.info(f"\tTCP {tcp.src_port} -> {tcp.dst_port}")
+                if self.verbose > 2:
+                    self.log.info(f"\tSize {len(tcp.data)}")
+                    self.log.info(f"\tFlags {tcp.flags['syn']} {tcp.flags['ack']} {tcp.flags['psh']} {tcp.flags['urg']} {tcp.flags['fin']} {tcp.flags['rst']}")
+            case "UDP":
+                udp = UDP(ip.data)
+
+                pinfo["l4_udp_port_src"]  = udp.src_port
+                pinfo["l4_udp_port_dst"]  = udp.dst_port
+                pinfo["l4_udp_port_size"] = udp.size
+
+                if self.verbose > 1:
+                    self.log.info(f"\tUDP {udp.src_port} -> {udp.dst_port}")
+                if self.verbose > 2:
+                    self.log.info(f"\tPayload size {udp.size}")
+
+                try: # try decoding dns
+                    dns = DNS(udp.data)
+
+                    pinfo["l7_dns_is_query"]     = dns.is_query
+                    pinfo["l7_dns_txid"]         = dns.txid
+                    pinfo["l7_dns_n_queries"]    = dns.nqueries
+                    pinfo["l7_dns_n_answers"]    = dns.nanswers
+                    pinfo["l7_dns_n_authority"]  = dns.nauthority
+                    pinfo["l7_dns_n_additional"] = dns.nadditional
+                    
+                    if self.verbose > 1:
+                        self.log.info(f"\t\tDNS query? {dns.is_query == 0x8000} txid {dns.txid}")
+                    if self.verbose > 2:
+                        self.log.info(f"\t\t{dns.queries} queries {dns.nqueries} answers {dns.nanswers}")
+
+                    if udp.src_port == 53 or udp.dst_port == 53:
+                        pass
+                    else:
+                        pinfo["a1_port_trojan"] = "True"
+                        pinfo["a1_port_trojan_exp_proto"] = Protocols(udp, "UDP").protos
+                        pinfo["a1_port_trojan_act_l4_proto"] = "UDP"
+                        pinfo["a1_port_trojan_act_l7_proto"] = "dns"
+                except Exception as e:
+                    self.log.warn(e)
+                    input()
+
+        if pinfo["a1_port_trojan"] == "True":
+            match pinfo["a1_port_trojan_act_l4_proto"]:
+                case "UDP":
+                    trojan_packet = udp
+                case "TCP":
+                    trojan_packet = tcp
+            
+            if self.verbose > 1:
+                self.log.warn(f"\tTrojan protocol detected! from {ip.src}:{trojan_packet.src_port} to {ip.dst}:{trojan_packet.dst_port}")
+                self.log.warn(f"\texpected {pinfo['a1_port_trojan_exp_proto']} got {pinfo['a1_port_trojan_act_l7_proto']}")
+
+        os.mkdir(f"{self.out}{self.counter}")
+        with open(f"{self.out}{self.counter}/info.yml", "w") as fp:
+            fp.write(yaml.dump(pinfo))
+        with open(f"{self.out}{self.counter}/raw.bin", "wb") as fp:
+            fp.write(packet.get_payload())
+
+        packet.accept()
+
+if __name__ == "__main__":
+    log = Log()
+    log.succ("pkt v1.0.0")
+
+    parser = argparse.ArgumentParser(description='A stateless firewall with yara like rules in python.', allow_abbrev=True)
+    parser.add_argument('--verbose', '-v', action='count', default=0, help='Increases verbosity')
+    parser.add_argument('--rules', '-r', help='The directory in which the rules are stored', type=str, default='rules/')
+    parser.add_argument('--out', '-o', help='The directory in which the packet output is stored', type=str, default='')
+    args = parser.parse_args()
+
+    _pkt = Pkt(args.verbose, args.rules, args.out)
+    _pkt.run()
