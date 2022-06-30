@@ -1,7 +1,12 @@
 #! /usr/bin/env python3
 
 from netfilterqueue import NetfilterQueue
-import argparse, shutil, os, yara, sys, yaml
+import argparse
+import shutil
+import os
+import yara
+import sys
+import yaml
 
 from src.terminal import *
 from src.packet import *
@@ -49,7 +54,7 @@ class Pkt:
 
         pinfo = {
             "a1_port_trojan"              : "", # trojan port?
-            "a1_port_trojan_exp_proto" : "", # expected protocol
+            "a1_port_trojan_exp_proto"    : "", # expected protocol
             "a1_port_trojan_act_l4_proto" : "", # actual layer 4 protocol
             "a1_port_trojan_act_l7_proto" : "", # actual protocol observed
 
@@ -83,7 +88,9 @@ class Pkt:
 
         }
 
-        ip = IP(packet.get_payload())
+        pld = packet.get_payload()
+
+        ip = IP(pld)
         pinfo["l3_ipv4_src"]   = ip.src
         pinfo["l3_ipv4_dst"]   = ip.dst
         pinfo["l3_ipv4_proto"] = ip.proto
