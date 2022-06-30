@@ -39,6 +39,7 @@ You need:
 
 Run:
 ```bash
+sudo pip3 install -r requirements.txt
 less run_pkt.sh
 echo -e \\nONLY PRESS ENTER\\nif you have:\\n\\n1. read through the script carefully\\n2. trust everything that it does\\notherwise, press Ctrl+C
 read && ./run_pkt.sh
