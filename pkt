@@ -21,6 +21,7 @@ class Pkt:
 
         try:
             self.rules = yara.compile(f'{rules_path}default.yar')
+            self.rules_RAW = yara.compile(f'{rules_path}default_RAW.yar')
         except Exception as e:
             self.log.warn(f"Failed to open default yara file! {e}")
             sys.exit(1)
@@ -86,6 +87,11 @@ class Pkt:
             "l7_dns_n_authority"       : "", # 
             "l7_dns_n_additional"      : "", # number of additional dns queries/answers
 
+            "l7_tls_handshake"         : "", # type of tls handshake
+            "l7_tls_version"           : "", # tls version
+            "l7_tls_n_ciphersuites"    : "", # number cipher suites supported
+            "l7_tls_suites"            : "", # the tls cipher suites space delimited
+            "l7_tls_ja3"               : "", # ja3 fingerprint hash (TODO: this)
         }
 
         pld = packet.get_payload()
@@ -119,8 +125,29 @@ class Pkt:
                 if self.verbose > 1:
                     self.log.info(f"\tTCP {tcp.src_port} -> {tcp.dst_port}")
                 if self.verbose > 2:
-                    self.log.info(f"\tSize {len(tcp.data)}")
+                    self.log.info(f"\tSize {len(tcp.data)} Sequence number {tcp.seq}")
                     self.log.info(f"\tFlags {tcp.flags['syn']} {tcp.flags['ack']} {tcp.flags['psh']} {tcp.flags['urg']} {tcp.flags['fin']} {tcp.flags['rst']}")
+                try: # try decoding tls
+                    if tcp.data != b'':
+                        tls = TLS(tcp.data)
+
+                        pinfo["l7_tls_content_type"]   = tls.content_type
+                        pinfo["l7_tls_handshake"]      = tls.handshake
+                        pinfo["l7_tls_version"]        = tls.version
+                        pinfo["l7_tls_n_ciphersuites"] = int(tls.cipher_suites_len/2)
+                        pinfo["l7_tls_suites"]         = " ".join(tls.suites)
+                        pinfo["l7_tls_ja3"]            = ""
+
+                        if self.verbose > 1:
+                            self.log.info(f"\t\tTLS version {tls.version} content type {tls.content_type}")
+                        if self.verbose > 2:
+                            if tls.content_type == "handshake":
+                                self.log.info(f"\t\thandshake type {tls.handshake} cipher suites {' '.join(tls.suites)}")
+                except Exception as e:
+                    pass
+                #    self.log.warn(e)
+                #    input()
+
             case "UDP":
                 udp = UDP(ip.data)
 
@@ -156,8 +183,8 @@ class Pkt:
                         pinfo["a1_port_trojan_act_l4_proto"] = "UDP"
                         pinfo["a1_port_trojan_act_l7_proto"] = "dns"
                 except Exception as e:
-                    self.log.warn(e)
-                    input()
+                    pass
+                    #self.log.warn(e)
 
         if pinfo["a1_port_trojan"] == "True":
             match pinfo["a1_port_trojan_act_l4_proto"]:
@@ -174,9 +201,36 @@ class Pkt:
         with open(f"{self.out}{self.counter}/info.yml", "w") as fp:
             fp.write(yaml.dump(pinfo))
         with open(f"{self.out}{self.counter}/raw.bin", "wb") as fp:
-            fp.write(packet.get_payload())
+            fp.write(ip.data)
 
-        packet.accept()
+        matches = self.rules.match(f"{self.out}{self.counter}/info.yml")
+        for i in self.rules_RAW.match(f"{self.out}{self.counter}/raw.bin"):
+            matches.append(i)
+
+        if matches != []:
+            self.log.alert("\tPacket matched!")
+            if self.verbose > 1 and self.verbose <= 2:
+                self.log.alert("\t" + " ".join([rule.rule for rule in matches]))
+            end_verdict = "accept"
+            for match_ in matches:
+                if self.verbose > 2:
+                    self.log.alert(f"\t{match_.rule} - {match_.meta['behaviour']}")
+                for behaviour in match_.meta['behaviour'].split():
+                    match behaviour:
+                        case "drop":
+                            end_verdict = "drop"
+                        case "accept":
+                            if end_verdict != "drop":
+                                end_verdict = "accept"
+                        case "log":
+                            print("TODO: this")
+
+            if end_verdict == "accept":
+                packet.accept()
+            else:
+                packet.drop()
+        else:
+            packet.accept()
 
 if __name__ == "__main__":
     log = Log()

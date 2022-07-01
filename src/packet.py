@@ -4,6 +4,7 @@ class IP:
     def __init__(self, data):
         self.protos = {
             1: "ICMP",
+            2: "IGMP",
             6: "TCP",
             17: "UDP"
         }
@@ -104,6 +105,72 @@ class DNS:
         domain = [x.decode("ascii") for x in domain]
         domain = ".".join(domain)
         return domain
+
+class TLS:
+    def __init__(self, data):
+        content_type, version, length = struct.unpack("!B2sh", data[:5])
+        
+        tls_handshakes = {
+            1: "client_hello",
+            2: "server_hello"
+        }
+
+        tls_versions = {
+            b"\x03\x04": "tls1.3",
+            b"\x03\x03": "tls1.2",
+            b"\x03\x02": "tls1.1",
+            b"\x03\x01": "tls1.0",
+        }
+
+        tls_content = {
+            20: "change_cipher_spec",
+            21: "alert",
+            22: "handshake",
+            23: "application_data",
+            24: "heartbeat",
+            25: "tls12_cid",
+            26: "ack"
+        }
+
+        self.version = tls_versions[version]
+        ja3_version = struct.unpack("!H", version)
+        self.content_type = tls_content[content_type]
+        self.handshake = ""
+        self.suites = []
+        self.cipher_suites_len = 0.5
+
+        if self.content_type != "handshake":
+            return
+
+        # parse handshake
+        data = data[5:]
+
+        self.handshake, length, version = struct.unpack("!b2xB2s", data[:6])
+        self.version = tls_versions[version]
+        ja3_version = struct.unpack("!H", version)
+
+        self.handshake = tls_handshakes[self.handshake]
+
+        # we already know the tls version + we dont care about the random value
+        data = data[6+32:]
+
+        if self.handshake == "client_hello":
+            session_id_len, self.cipher_suites_len = struct.unpack("!b32xh", data[:35])
+            data = data[35:]
+            
+            self.suites = []
+            for i in range(0, self.cipher_suites_len, 2):
+                self.suites.append(str(struct.unpack("!H", data[i:i+2])[0]))
+        
+            data = data[self.cipher_suites_len:]
+            self.compression_length = struct.unpack("!b", data[:1])
+            data = data[1+self.compression_length[0]:]
+        
+            self.extensions_length = struct.unpack("!h", data[:2])
+            self.data = data[2:]
+            
+        else:
+            pass
 
 class Protocols:
     def __init__(self, parsed_packet, packet_proto):
