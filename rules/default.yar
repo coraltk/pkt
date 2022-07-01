@@ -1,3 +1,4 @@
+/*
 rule alert_tls_client_hello {
     meta:
         created  = "01/07/2022 19:38:00"
@@ -24,7 +25,7 @@ rule drop_tor
     condition:
         $cipher_suites_fingerprint and $client_hello
 }
-/*
+
 rule drop_trojan_port
 {
     meta:

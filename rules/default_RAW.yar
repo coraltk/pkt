@@ -1,3 +1,4 @@
+/*
 rule alert_http_RAW {
     meta:
         created  = "01/07/2022 11:02:05"
@@ -10,3 +11,4 @@ rule alert_http_RAW {
     condition:
         $http_get or $http_response
 }
+*/
