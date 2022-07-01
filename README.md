@@ -14,17 +14,16 @@ This only works on **linux**. This is only designed for **linux**. There will mo
 
 ### > Making rules
 
-There are two rules you need to create per .yar file. The first one should be called `rule_name` (whatever you want), and the second one should be called `rule_name_RAW`.
+There are two yara files, `default.yar` and `default_RAW.yar`. The first one should contain rules matched against 'info.yml' in each packet directory. The second one is matched against the `raw.bin` file in each packet directory
 
-- `rule_name`
-    - Should be a properly formatted yara rule
-    - Matched against the parsed packed data
+- `default.yar`
+    - Should contain properly formatted yara rule(s)
+    - Matched against the parsed packed data in `info.yml`
         - Stored in format: `l<osi model layer>_<packet type>_<attribute>_<optional sub-attribute>`, e.g.
         - `l4_tcp_port_dst`, `l3_ipv4_src`, or `l6_tls_version`
-- `rule_name_RAW`
-    - Should be a properly formatted yara rule
-    - Matched against **raw** packet data (raw bytes starting at the network layer)
-    - **NOTE** you can have `_RAW` multiple times in this second rule, as the parser seeks backwards through the rule name
+- `default_RAW.yar`
+    - Should contain properly formatted yara rule(s)
+    - Matched against **raw** packet data (raw bytes starting at the network layer) in `raw.bin`
 
 ### > How to run?
 

@@ -6,8 +6,8 @@ rule alert_tls_client_hello {
         author   = "lockness-Ko"
         behaviour= "accept log"
     strings:
-        $tls_content_handshake = "l7_tls_content_type: handshake" ascii wide nocase
-        $tls_handshake_client_hello = "l7_tls_handshake: client_hello" ascii wide nocase
+        $tls_content_handshake = "l6_tls_content_type: handshake" ascii wide nocase
+        $tls_handshake_client_hello = "l6_tls_handshake: client_hello" ascii wide nocase
     condition:
         $tls_handshake_client_hello and $tls_content_handshake
 }
@@ -20,8 +20,8 @@ rule drop_tor
         author   = "lockness-Ko"
         behaviour= "drop log"
     strings:
-        $cipher_suites_fingerprint = "l7_tls_suites: 4866 4867 4865 49195 49199 52393 52392 49196 49200 49162 49161 49171\n  49172 51 57 47 53 255"
-        $client_hello = "l7_tls_handshake: client_hello"
+        $cipher_suites_fingerprint = "l6_tls_suites: 4866 4867 4865 49195 49199 52393 52392 49196 49200 49162 49161 49171\n  49172 51 57 47 53 255"
+        $client_hello = "l6_tls_handshake: client_hello"
     condition:
         $cipher_suites_fingerprint and $client_hello
 }
