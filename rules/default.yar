@@ -1,4 +1,3 @@
-/*
 rule alert_tls_client_hello {
     meta:
         created  = "01/07/2022 19:38:00"
@@ -11,7 +10,7 @@ rule alert_tls_client_hello {
     condition:
         $tls_handshake_client_hello and $tls_content_handshake
 }
-
+/*
 rule drop_tor
 {
     meta:
