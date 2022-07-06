@@ -1,3 +1,16 @@
+rule drop_outbound_dns {
+    meta:
+        created  = "06/07/2022 12:43:49"
+        modified = "06/07/2022 12:43:49"
+        author   = "lockness-Ko"
+        behaviour= "drop"
+    strings:
+        $dns_request = "l4_udp_port_dst: 53" ascii wide nocase
+        $localhost_destination = "l3_ipv4_dst: 127.0.0.1" ascii wide nocase
+    condition:
+        $dns_request and not $localhost_destination
+}
+
 /*rule alert_tls_client_hello {
     meta:
         created  = "01/07/2022 19:38:00"

@@ -250,6 +250,10 @@ if __name__ == "__main__":
     log = Log()
     log.succ("pkt v1.0.0")
 
+    if os.geteuid() != 0:
+        log.warn('This script needs to be run as root')
+        sys.exit(1)
+
     parser = argparse.ArgumentParser(
         description='A stateless firewall with yara like rules in python.', allow_abbrev=True)
     parser.add_argument('--verbose', '-v', action='count',
@@ -258,7 +262,28 @@ if __name__ == "__main__":
         '--rules', '-r', help='The directory in which the rules are stored', type=str, default='rules/')
     parser.add_argument(
         '--out', '-o', help='The directory in which the packet output is stored', type=str, default='packets/')
+    parser.add_argument('--service', '-s',
+                        help='Systemd service configuration', choices=['start', 'stop', 'restart', 'install', 'uninstall'], type=str, default=None)
+    parser.add_argument(
+        '--daemon', '-d', help='If you are running pkt as a daemon', type=bool)
     args = parser.parse_args()
 
-    _pkt = Pkt(args.verbose, args.rules, args.out)
-    _pkt.run()
+    if args.service != None:
+        match args.service:
+            case 'start':
+                os.system('systemctl start pkt.service')
+            case 'stop':
+                os.system('systemctl stop pkt.service')
+            case 'restart':
+                os.system('systemctl restart pkt.service')
+            case 'install':
+                shutil.copyfile('lib/pkt.service',
+                                '/etc/systemd/system/pkt.service')
+                os.system('systemctl enable pkt.service')
+            case 'uninstall':
+                os.system('systemctl disable pkt.service')
+                os.remove('/etc/systemd/system/pkt.service')
+    else:
+        verbosity = 1 if args.daemon else args.verbose
+        _pkt = Pkt(verbosity, args.rules, args.out)
+        _pkt.run()

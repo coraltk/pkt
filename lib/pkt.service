@@ -1,0 +1,12 @@
+# pkt.service
+[Unit]
+Description=pkt stateless firewall with yara like rules in python
+AssertPathExists=/opt/pkt
+After=network.target
+
+[Service]
+ExecStart=/opt/pkt/run_pkt.sh --daemon 1 -o /opt/pkt/packets/ -r /opt/pkt/rules/
+ExecStop=/opt/pkt/iptables_restore.sh
+
+[Install]
+WantedBy=multi-user.target
