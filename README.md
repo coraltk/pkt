@@ -25,6 +25,20 @@ There are two yara files, `default.yar` and `default_RAW.yar`. The first one sho
     - Should contain properly formatted yara rule(s)
     - Matched against **raw** packet data (raw bytes starting at the network layer) in `raw.bin`
 
+### 🤖 Systemd unit
+
+To run pkt as a daemon, you first need to install everything and make sure it works.
+
+After that, use these commands to interact with the daemon:
+
+```bash
+./run_pkt.sh --service start # starts the service (only after installed)
+./run_pkt.sh --service stop # stops the service
+./run_pkt.sh --service restart # restarts the service (only after installed)
+./run_pkt.sh --service install # installs and enables the service
+./run_pkt.sh --service uninstall # uninstalls and disables the service
+```
+
 ### 🤨 How to run?
 
 You need:
