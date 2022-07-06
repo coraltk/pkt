@@ -1,8 +1,8 @@
-# $ pkt
+# 📦 pkt
 
 stateless firewall with yara like rules in python
 
-## $ Important stuff
+## ‼️ Important stuff
 
 In these docs when I'm referring to the OSI model and the various layers that the protocols are in, use this image to see what I mean:
 
@@ -10,9 +10,9 @@ In these docs when I'm referring to the OSI model and the various layers that th
 
 This only works on **linux**. This is only designed for **linux**. There will most likely be **no support** for **operating systems other than linux**.
 
-## $ Docs
+## 📖 Docs
 
-### > Making rules
+### 📜 Making rules
 
 There are two yara files, `default.yar` and `default_RAW.yar`. The first one should contain rules matched against 'info.yml' in each packet directory. The second one is matched against the `raw.bin` file in each packet directory
 
@@ -25,7 +25,7 @@ There are two yara files, `default.yar` and `default_RAW.yar`. The first one sho
     - Should contain properly formatted yara rule(s)
     - Matched against **raw** packet data (raw bytes starting at the network layer) in `raw.bin`
 
-### > How to run?
+### 🤨 How to run?
 
 You need:
 - linux
